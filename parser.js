@@ -11,9 +11,9 @@ export class Parser {
     this.blackList = new Set();
   }
 
-  getClientIp(req = { headers: {}, socket: { remoteAddress: '127.0.0.1' } }) {
+  getClientIp(req) {
     const forwarded = req.headers['x-forwarded-for'];
-    const ip = forwarded ? forwarded.split(',')[0] : req.socket.remoteAddress;
+    const ip = forwarded ? forwarded.split(',')[0].trim() : req.socket.remoteAddress; // Інакше беремо IP-адресу з сокета
     return ip;
   }
 
