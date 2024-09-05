@@ -5,6 +5,18 @@ const parser = new Parser(url);
 
 let requestCount = 0; // Request counter
 
+const fakeReq = {
+  headers: {
+    'x-forwarded-for': '192.168.1.1'
+  },
+  socket: {
+    remoteAddress: '192.168.1.2'
+  }
+};
+
+const ip = parser.getClientIp(fakeReq);
+
+
 const intervalId = setInterval(async () => {
   requestCount++;
   console.log(`Request #${requestCount}`);
