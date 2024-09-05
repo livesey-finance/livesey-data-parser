@@ -2,137 +2,167 @@ import https from 'node:https';
 import { URL } from 'node:url';
 
 class Parser {
-    constructor(url, maxRequestsPerHour = 50) {
-        this.url = url;
-        this.maxRequestsPerHour = maxRequestsPerHour;
-        this.requestCounts = {};
-        this.html = null;
-        this.data = null;
+  constructor(url, maxRequestsPerHour = 4) {
+    this.url = url;
+    this.maxRequestsPerHour = maxRequestsPerHour;
+    this.requestCounts = {};
+    this.html = null;
+    this.data = null;
+    this.blackList = new Set();
+  }
+
+  getClientIp(req = { headers: {}, socket: { remoteAddress: '127.0.0.1' } }) {
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = forwarded ? forwarded.split(',')[0] : req.socket.remoteAddress;
+    return ip;
+  }
+
+  checkRequestLimit(req) {
+    const ip = this.getClientIp(req);
+    const currentTime = Math.floor(Date.now() / 1000);
+
+    // If IP not found, initialize it
+    if (!this.requestCounts[ip]) {
+      this.requestCounts[ip] = { count: 1, lastRequestTime: currentTime, blockTime: 0 };
+      return true;
     }
 
-    getClientIp(req) {
-        const forwarded = req.headers['x-forwarded-for'];
-        const ip = forwarded ? forwarded.split(',')[0] : req.socket.remoteAddress;
-        return ip;
-    }
+    const requestInfo = this.requestCounts[ip];
+    const blockDuration = 3600; // 1 hour
+    const penaltyFactor = 2; // Exponential increase of block time
 
-    checkRequestLimit(req) {
-        const ip = this.getClientIp(req);
-        if (!ip) {
-            throw new Error('IP must not be null or undefined');
-        }
-
-        const currentTime = Math.floor(Date.now() / 1000);
-        let requestInfo = this.requestCounts[ip];
-
-        if (!requestInfo) {
-            requestInfo = { count: 0, lastRequestTime: currentTime };
-            this.requestCounts[ip] = requestInfo;
-        }
-
-        if (currentTime - requestInfo.lastRequestTime > 3600) { 
-            requestInfo.count = 0;
-            requestInfo.lastRequestTime = currentTime;
-        }
-
-        if (requestInfo.count >= this.maxRequestsPerHour) {
-            return false;
-        }
-
-        requestInfo.count++;
-        this.requestCounts[ip] = requestInfo;
-
+    // If IP is already blocked
+    if (requestInfo.blockTime) {
+      const unblockTime = requestInfo.blockTime + (blockDuration * penaltyFactor);
+      if (currentTime < unblockTime) {
+        console.log(`IP blocked for: ${unblockTime - currentTime} seconds`);
+        return false;
+      } else {
+        // Unblock IP after block time expires
+        console.log('IP unblocked.');
+        this.blackList.delete(ip);
+        console.log(`${ip} removed from blacklist`);
+        requestInfo.blockTime = 0;
+        requestInfo.count = 1; // Reset count after unblocking
+        requestInfo.lastRequestTime = currentTime;
         return true;
+      }
     }
 
-    setUrl(url) {
-        this.url = url;
-        return this; 
+    // If request limit exceeded
+    if (requestInfo.count >= this.maxRequestsPerHour) {
+      requestInfo.blockTime = currentTime; // Set block time
+      console.log(`Request limit exceeded for IP: ${ip}. Blocking for ${blockDuration * penaltyFactor} seconds.`);
+      console.log(`${ip} added to blacklist`);
+      this.blackList.add(ip);
+      return false;
     }
 
-    fetchHTML() {
-        return new Promise((resolve, reject) => {
-            const urlObj = new URL(this.url);
-            const options = {
-                hostname: urlObj.hostname,
-                path: urlObj.pathname + urlObj.search,
-                method: 'GET',
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                }
-            };
+    // Update request count
+    requestInfo.count += 1;
+    requestInfo.lastRequestTime = currentTime;
+    return true;
+  }
 
-            https.get(options, (res) => {
-                const { statusCode, headers } = res;
+  setUrl(url) {
+    this.url = url;
+    return this;
+  }
 
-                if (statusCode >= 300 && statusCode < 400 && headers.location) {
-                    console.log('Redirecting to:', headers.location);
-                    resolve(null); 
-                    return;
-                }
-
-                if (statusCode !== 200) {
-                    reject(new Error(`Request Failed. Status Code: ${statusCode}`));
-                    return;
-                }
-
-                let data = '';
-                res.on('data', (chunk) => {
-                    data += chunk;
-                });
-
-                res.on('end', () => {
-                    this.html = data;
-                    resolve(this);
-                });
-            }).on('error', (err) => {
-                reject(err);
-            });
-        });
-    }
-
-parseData() {
-    if (!this.html) {
-        throw new Error('HTML is not loaded yet. Call fetchHTML() first.');
-    }
-
-    const stockNameMatch = this.html.match(/<b>(.*?)<\/b>/); // Знайдемо перший тег <b> (назва акції)
-        const stockName = stockNameMatch ? stockNameMatch[1].trim() : 'N/A';
-
-        const priceMatch = this.html.match(/<b>(\d+\.\d+)<\/b>/); // Знайдемо першу ціну (формат числа)
-        const price = priceMatch ? priceMatch[1].trim() : 'N/A';
-
-        const marketCapMatch = this.html.match(/Market Cap<\/td><td[^>]*><b>(.*?)<\/b>/); // Ринкова капіталізація
-        const marketCap = marketCapMatch ? marketCapMatch[1].trim() : 'N/A';
-
-        const P_E_Match = this.html.match(/P\/E<\/td><td[^>]*><b>(.*?)<\/b>/); // P/E (ціна/прибуток)
-        const P_E = P_E_Match ? P_E_Match[1].trim() : 'N/A';
-
-        this.data = { stockName, price, marketCap, P_E };
-        return this;
-}
-
-printData() {
-        if (!this.data) {
-            console.log("No data available. Make sure to call parseData() first.");
-        } else {
-            console.log("Parsed Data:", JSON.stringify(this.data, null, 2));
+  fetchHTML() {
+    return new Promise((resolve, reject) => {
+      const urlObj = new URL(this.url);
+      const options = {
+        hostname: urlObj.hostname,
+        path: urlObj.pathname + urlObj.search,
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
-        return this; 
-   }
+      };
+
+      https.get(options, (res) => {
+        const { statusCode, headers } = res;
+
+        if (statusCode >= 300 && statusCode < 400 && headers.location) {
+          console.log('Redirecting to:', headers.location);
+          resolve(null);
+          return;
+        }
+
+        if (statusCode !== 200) {
+          reject(new Error(`Request Failed. Status Code: ${statusCode}`));
+          return;
+        }
+
+        let data = '';
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+
+        res.on('end', () => {
+          this.html = data;
+          resolve(this);
+        });
+      }).on('error', (err) => {
+        reject(err);
+      });
+    });
+  }
+
+  parseData() {
+    if (!this.html) {
+      throw new Error('HTML is not loaded yet. Call fetchHTML() first.');
+    }
+
+    const stockNameMatch = this.html.match(/<b>(.*?)<\/b>/);
+    const stockName = stockNameMatch ? stockNameMatch[1].trim() : 'N/A';
+
+    const priceMatch = this.html.match(/<b>(\d+\.\d+)<\/b>/);
+    const price = priceMatch ? priceMatch[1].trim() : 'N/A';
+
+    const marketCapMatch = this.html.match(/Market Cap<\/td><td[^>]*><b>(.*?)<\/b>/);
+    const marketCap = marketCapMatch ? marketCapMatch[1].trim() : 'N/A';
+
+    const PEMatch = this.html.match(/P\/E<\/td><td[^>]*><b>(.*?)<\/b>/);
+    const P_E = PEMatch ? PEMatch[1].trim() : 'N/A';
+
+    this.data = { stockName, price, marketCap, P_E };
+    return this;
+  }
+
+  printData() {
+    if (!this.data) {
+      console.log('No data available. Make sure to call parseData() first.');
+    } else {
+      console.log('Parsed Data:', JSON.stringify(this.data, null, 2));
+    }
+    return this;
+  }
 }
 
-// URL для парсингу
 const url = 'https://finviz.com/quote.ashx?t=AAPL&p=d';
 const parser = new Parser(url);
 
-// Використовуємо async/await
-(async () => {
+let requestCount = 0; // Request counter
+
+const intervalId = setInterval(async () => {
+  requestCount++;
+  console.log(`Request #${requestCount}`);
+
+  // Simulate request using a fake `req` object
+  const canRequest = parser.checkRequestLimit();
+
+  if (canRequest) {
     try {
-        await parser.fetchHTML();   // Завантажуємо HTML
-        parser.parseData();         // Парсимо дані
-        parser.printData();         // Виводимо дані в консоль
+      await parser.fetchHTML();
+      parser.parseData();
+      parser.printData();
     } catch (err) {
-        console.error("Error:", err.message);
+      console.error('Request error:', err.message);
     }
-})();
+  } else {
+    console.log('Request limit exceeded, stopping...');
+    clearInterval(intervalId);
+  }
+}, 1000);
