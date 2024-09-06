@@ -28,7 +28,9 @@ const intervalId = setInterval(async () => {
       await parser.fetchHTML();
 
       // Extract and print data from the parsed HTML using the financialParser methods
-      console.log('Stock Name:', parser.stockName);
+      console.log('Ticker Symbol:', parser.tickerSymbol);
+      console.log('Current Price:', parser.currentPrice);
+      console.log('Stock Full Name:', parser.stockFullName);
       console.log('Price:', parser.price);
       console.log('Market Cap:', parser.marketCapitalization);
       console.log('P/E Ratio:', parser.peRatio);
@@ -48,7 +50,7 @@ const intervalId = setInterval(async () => {
       console.log('Current Ratio:', parser.currentRatio);
       console.log('Debt/Equity:', parser.debtEq);
       console.log('Long Term Debt/Equity:', parser.ltDebtEq);
-      console.log('EPS TTM:', parser.epsTtm);
+      //console.log('EPS TTM:', parser.epsTtm);
       console.log('ROA:', parser.roa);
       console.log('ROE:', parser.roe);
       console.log('ROI:', parser.roi);

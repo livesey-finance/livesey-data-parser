@@ -10,8 +10,16 @@ export class FinancialParser extends Parser {
     return match ? match[1].trim() : 'N/A';
   }
 
-  get stockName() {
-    return this.extractValue(/<b>(.*?)<\/b>/);
+  get stockFullName() {
+    return this.extractValue(/<h2[^>]*>\s*<a[^>]*>\s*(.*?)\s*<\/a>\s*<\/h2>/);
+  }
+
+  get tickerSymbol() {
+    return this.extractValue(/<h1[^>]*>\s*(.*?)\s*<\/h1>/);
+  }
+
+  get currentPrice() {
+    return this.extractValue(/<strong[^>]*>\s*(\d+\.\d+)\s*<\/strong>/);
   }
 
   get price() {
@@ -67,7 +75,7 @@ export class FinancialParser extends Parser {
   }
 
   get pcRatio() {
-    return this.extractValue(/P\/С<\/td><td[^>]*><b><span[^>]*>(\d+(\.\d+)?)<\/span><\/b>/);
+    return this.extractValue(/P\/C<\/td><td[^>]*><b><span[^>]*>(\d+(\.\d+)?)<\/span><\/b>/);
   }
 
   get pFcfRatio() {
@@ -90,9 +98,9 @@ export class FinancialParser extends Parser {
     return this.extractValue(/LT Debt\/Eq<\/td><td[^>]*><b><span[^>]*>(\d+(\.\d+)?)<\/span><\/b>/);
   }
 
-  get epsTtm() {
-    return this.extractValue(/EPS (ttm)<\/td><td[^>]*><b>(.*?)<\/b>/);
-  }
+  // get epsTtm() {
+  //   return this.extractValue(/EPS (ttm)<\/td><td[^>]*><b>(.*?)<\/b>/);
+  // }
 
   get roa() {
     return this.extractValue(/ROA.*?<span class="color-text .*?">(.*?)<\/span>/);
