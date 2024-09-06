@@ -1,7 +1,6 @@
 import { FinancialParser } from './financialParser.js';
 
-const url = 'https://finviz.com/quote.ashx?t=AAPL&p=d';
-const parser = new FinancialParser(url);
+const parser = new FinancialParser('NKE', 1);
 
 let requestCount = 0;
 
@@ -50,7 +49,6 @@ const intervalId = setInterval(async () => {
       console.log('Current Ratio:', parser.currentRatio);
       console.log('Debt/Equity:', parser.debtEq);
       console.log('Long Term Debt/Equity:', parser.ltDebtEq);
-      //console.log('EPS TTM:', parser.epsTtm);
       console.log('ROA:', parser.roa);
       console.log('ROE:', parser.roe);
       console.log('ROI:', parser.roi);

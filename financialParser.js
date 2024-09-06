@@ -1,8 +1,8 @@
 import { Parser } from './parser.js';
 
 export class FinancialParser extends Parser {
-  constructor(url, maxRequestsPerHour = 4) {
-    super(url, maxRequestsPerHour);
+  constructor(title, maxRequestsPerHour = 4) {
+    super(title, maxRequestsPerHour);
   }
 
   extractValue(regex) {

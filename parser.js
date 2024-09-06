@@ -2,8 +2,8 @@ import https from 'node:https';
 import { URL } from 'node:url';
 
 export class Parser {
-  constructor(url, maxRequestsPerHour = 4) {
-    this.url = url;
+  constructor(title, maxRequestsPerHour = 4) {
+    this.url = `https://finviz.com/quote.ashx?t=${title}&p=d`;
     this.maxRequestsPerHour = maxRequestsPerHour;
     this.requestCounts = {};
     this.html = null;
