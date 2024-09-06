@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 import { Parser } from './parser.js';
 
 export class FinancialParser extends Parser {
@@ -11,118 +12,110 @@ export class FinancialParser extends Parser {
   }
 
   get stockFullName() {
-    return this.extractValue(/<h2[^>]*>\s*<a[^>]*>\s*(.*?)\s*<\/a>\s*<\/h2>/);
+    return JSON.stringify({ stockFullName: this.extractValue(/<h2[^>]*>\s*<a[^>]*>\s*(.*?)\s*<\/a>\s*<\/h2>/) });
   }
 
   get tickerSymbol() {
-    return this.extractValue(/<h1[^>]*>\s*(.*?)\s*<\/h1>/);
+    return JSON.stringify({ tickerSymbol: this.extractValue(/<h1[^>]*>\s*(.*?)\s*<\/h1>/) });
   }
 
   get currentPrice() {
-    return this.extractValue(/<strong[^>]*>\s*(\d+\.\d+)\s*<\/strong>/);
-  }
-
-  get price() {
-    return this.extractValue(/Price.*?<b>(\d+\.\d+)<\/b>/);
+    return JSON.stringify({ currentPrice: this.extractValue(/<strong[^>]*>\s*(\d+\.\d+)\s*<\/strong>/) });
   }
 
   get marketCapitalization() {
-    return this.extractValue(/Market Cap.*?<b>(.*?)<\/b>/);
+    return JSON.stringify({ marketCapitalization: this.extractValue(/Market Cap.*?(?:<b>|<span.*?>)\s*(.*?)\s*(?:<\/b>|<\/span>)/) });
   }
 
   get income() {
-    return this.extractValue(/Income.*?<b>(.*?)<\/b>/);
+    return JSON.stringify({ income: this.extractValue(/Income.*?(?:<b>|<span.*?>)\s*(.*?)\s*(?:<\/b>|<\/span>)/) });
   }
 
   get sales() {
-    return this.extractValue(/Sales.*?<b>(.*?)<\/b>/);
+    return JSON.stringify({ sales: this.extractValue(/Sales.*?(?:<b>|<span.*?>)\s*(.*?)\s*(?:<\/b>|<\/span>)/) });
   }
 
   get bookSh() {
-    return this.extractValue(/Book\/sh<\/td><td[^>]*><b>(.*?)<\/b>/);
+    return JSON.stringify({ bookSh: this.extractValue(/Book\/sh<\/td><td[^>]*><b>(.*?)<\/b>/) });
   }
 
   get cashSh() {
-    return this.extractValue(/Cash\/sh<\/td><td[^>]*><b>(.*?)<\/b>/);
+    return JSON.stringify({ cashSh: this.extractValue(/Cash\/sh<\/td><td[^>]*><b>(.*?)<\/b>/) });
   }
 
   get dividendEstimation() {
-    return this.extractValue(/Dividend Estimate.*?<b>(.*?)<\/b>/);
+    return JSON.stringify({ dividendEstimation: this.extractValue(/Dividend Estimate.*?(?:<b>|<span.*?>)\s*(.*?)\s*(?:<\/b>|<\/span>)/) });
   }
 
   get dividendTtm() {
-    return this.extractValue(/Dividend TTM.*?<b>(.*?)<\/b>/);
+    return JSON.stringify({ dividendTtm: this.extractValue(/Dividend TTM.*?(?:<b>|<span.*?>)\s*(.*?)\s*(?:<\/b>|<\/span>)/) });
   }
 
   get peRatio() {
-    return this.extractValue(/P\/E<\/td><td[^>]*><b>(.*?)<\/b>/);
+    return JSON.stringify({ peRatio: this.extractValue(/P\/E.*?(?:<b>|<span.*?>)\s*(.*?)\s*(?:<\/b>|<\/span>)/) });
   }
 
   get forwardPeRatio() {
-    return this.extractValue(/Forward P\/E<\/td><td[^>]*><b>(.*?)<\/b>/);
+    return JSON.stringify({ forwardPeRatio: this.extractValue(/Forward P\/E<\/td><td[^>]*>(?:<b>\s*)?(?:<span[^>]*>)?\s*([\d.]+)\s*(?:<\/span>)?(?:\s*<\/b>)?/) });
   }
 
   get pegRatio() {
-    return this.extractValue(/PEG<\/td><td[^>]*><b><span[^>]*>(\d+(\.\d+)?)<\/span><\/b>/);
+    return JSON.stringify({ pegRatio: this.extractValue(/PEG<\/td><td[^>]*>(?:<b>\s*)?(?:<span[^>]*>)?\s*([\d.]+)\s*(?:<\/span>)?(?:\s*<\/b>)?/) });
   }
 
   get psRatio() {
-    return this.extractValue(/P\/S<\/td><td[^>]*><b>(.*?)<\/b>/);
+    return JSON.stringify({ psRatio: this.extractValue(/P\/S<\/td><td[^>]*>(?:<b>\s*)?(?:<span[^>]*>)?\s*([\d.]+)\s*(?:<\/span>)?(?:\s*<\/b>)?/) });
   }
 
   get pbRatio() {
-    return this.extractValue(/P\/B<\/td><td[^>]*><b><span[^>]*>(\d+(\.\d+)?)<\/span><\/b>/);
+    return JSON.stringify({ pbRatio: this.extractValue(/P\/B<\/td><td[^>]*>(?:<b>\s*)?(?:<span[^>]*>)?\s*([\d.]+)\s*(?:<\/span>)?(?:\s*<\/b>)?/) });
   }
 
   get pcRatio() {
-    return this.extractValue(/P\/C<\/td><td[^>]*><b><span[^>]*>(\d+(\.\d+)?)<\/span><\/b>/);
+    return JSON.stringify({ pcRatio: this.extractValue(/P\/C<\/td><td[^>]*>(?:<b>\s*)?(?:<span[^>]*>)?\s*([\d.]+)\s*(?:<\/span>)?(?:\s*<\/b>)?/) });
   }
 
   get pFcfRatio() {
-    return this.extractValue(/P\/FCF<\/td><td[^>]*><b>(.*?)<\/b>/);
+    return JSON.stringify({ pFcfRatio: this.extractValue(/P\/FCF<\/td><td[^>]*>(?:<b>\s*)?(?:<span[^>]*>)?\s*([\d.]+)\s*(?:<\/span>)?(?:\s*<\/b>)?/) });
   }
 
   get quickRatio() {
-    return this.extractValue(/Quick Ratio.*?<b>(.*?)<\/b>/);
+    return JSON.stringify({ quickRatio: this.extractValue(/Quick Ratio.*?(?:<b>|<span.*?>)\s*([\d.]+)\s*(?:<\/b>|<\/span>)/) });
   }
 
   get currentRatio() {
-    return this.extractValue(/Current Ratio.*?<span class="color-text .*?">(.*?)<\/span>/);
+    return JSON.stringify({ currentRatio: this.extractValue(/Current Ratio.*?(?:<b>|<span.*?>)\s*([\d.]+)\s*(?:<\/b>|<\/span>)/) });
   }
 
   get debtEq() {
-    return this.extractValue(/Debt\/Eq<\/td><td[^>]*><b><span[^>]*>(\d+(\.\d+)?)<\/span><\/b>/);
+    return JSON.stringify({ debtEq: this.extractValue(/Debt\/Eq<\/td><td[^>]*>(?:<b>\s*)?(?:<span[^>]*>)?\s*([\d.]+)\s*(?:<\/span>)?(?:\s*<\/b>)?/) });
   }
 
   get ltDebtEq() {
-    return this.extractValue(/LT Debt\/Eq<\/td><td[^>]*><b><span[^>]*>(\d+(\.\d+)?)<\/span><\/b>/);
+    return JSON.stringify({ ltDebtEq: this.extractValue(/LT Debt\/Eq<\/td><td[^>]*>(?:<b>\s*)?(?:<span[^>]*>)?\s*([\d.]+)\s*(?:<\/span>)?(?:\s*<\/b>)?/) });
   }
 
-  // get epsTtm() {
-  //   return this.extractValue(/EPS (ttm)<\/td><td[^>]*><b>(.*?)<\/b>/);
-  // }
-
   get roa() {
-    return this.extractValue(/ROA.*?<span class="color-text .*?">(.*?)<\/span>/);
+    return JSON.stringify({ roa: this.extractValue(/ROA.*?<span class="color-text .*?">(.*?)<\/span>/) });
   }
 
   get roe() {
-    return this.extractValue(/ROE.*?<span class="color-text .*?">(.*?)<\/span>/);
+    return JSON.stringify({ roe: this.extractValue(/ROE.*?<span class="color-text .*?">(.*?)<\/span>/) });
   }
 
   get roi() {
-    return this.extractValue(/ROI.*?<span class="color-text .*?">(.*?)<\/span>/);
+    return JSON.stringify({ roi: this.extractValue(/ROI.*?<span class="color-text .*?">(.*?)<\/span>/) });
   }
 
   get volume() {
-    return this.extractValue(/Volume.*?<b>(.*?)<\/b>/);
+    return JSON.stringify({ volume: this.extractValue(/Volume.*?(?:<b>|<span.*?>)\s*(.*?)\s*(?:<\/b>|<\/span>)/) });
   }
 
   get beta() {
-    return this.extractValue(/Beta.*?<b>(.*?)<\/b>/);
+    return JSON.stringify({ beta: this.extractValue(/Beta.*?(?:<b>|<span.*?>)\s*(.*?)\s*(?:<\/b>|<\/span>)/) });
   }
 
   get change() {
-    return this.extractValue(/Change.*?<span class="color-text .*?">(.*?)<\/span>/);
+    return JSON.stringify({ change: this.extractValue(/Change.*?<span class="color-text .*?">(.*?)<\/span>/) });
   }
 }

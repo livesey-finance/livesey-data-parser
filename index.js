@@ -1,6 +1,6 @@
 import { FinancialParser } from './financialParser.js';
 
-const parser = new FinancialParser('NKE', 1);
+const parser = new FinancialParser('AAPL', 1);
 
 let requestCount = 0;
 
@@ -30,7 +30,6 @@ const intervalId = setInterval(async () => {
       console.log('Ticker Symbol:', parser.tickerSymbol);
       console.log('Current Price:', parser.currentPrice);
       console.log('Stock Full Name:', parser.stockFullName);
-      console.log('Price:', parser.price);
       console.log('Market Cap:', parser.marketCapitalization);
       console.log('P/E Ratio:', parser.peRatio);
       console.log('Income:', parser.income);
