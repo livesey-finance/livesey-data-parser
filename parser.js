@@ -4,16 +4,19 @@ import { URL } from 'node:url';
 import { Queue } from './queue.js';
 
 export class Parser {
-  constructor(url, maxRequestsPerHour = 4, concurrency = 3) {
+  constructor(url, maxRequestsPerHour = 4, concurrency = 1, wait = 5000, timeout = 10000) {
     this.url = url;
+    this.wait = wait;
+    this.timeout = timeout;
     this.maxRequestsPerHour = maxRequestsPerHour;
     this.requestCounts = {};
     this.html = null;
     this.data = null;
     this.blackList = new Set();
     this.queue = Queue.channels(concurrency)
-      .process(this.job)
-      .wait(200)
+      .wait(this.wait)
+      .timeout(this.timeout)
+      .process(this.job.bind(this))
       .drain(() => console.log('Queue drain'));
   }
 
@@ -95,6 +98,8 @@ export class Parser {
         https.get(options, (res) => {
           const { statusCode, headers } = res;
 
+          console.log(`Status Code for ${this.url}: ${res.statusCode}`);
+
           if (statusCode >= 300 && statusCode < 400 && headers.location) {
             console.log('Redirecting to:', headers.location);
             resolve(null);
@@ -132,18 +137,26 @@ export class Parser {
 
   async job(task, next) {
     try {
-      await this.fetchHTML(task.url);
+      console.log(`Processing URL: ${task.url}`);
+      await this.fetchHTML();
+      if (this.html) {
+        console.log(`Fetched HTML for ${task.url}`);
+      } else {
+        console.error(`Failed to fetch HTML for ${task.url}`);
+      }
       next(null, task);
     } catch (err) {
+      console.error(`Error processing URL: ${task.url}`, err);
       next(err);
     }
   }
 
   queueFetch(urls) {
     for (const url of urls) {
-      this.queue.add({ url });
+      this.queue.add({ url });  // Передаємо { url } як об'єкт у чергу
     }
   }
+
 
   extractValue(regex) {
     const match = this.html.match(regex);

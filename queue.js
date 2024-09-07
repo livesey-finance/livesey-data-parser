@@ -98,18 +98,3 @@ export class Queue {
     return this;
   }
 };
-
-
-const job = (task, next) => {
-  setTimeout(next, task.interval, null, task);
-};
-
-const queue = Queue.channels(3)
-  .wait(4000)
-  .timeout(5000)
-  .process(job)
-  .drain(() => console.log('Queue drain'));
-
-for (let i = 0; i < 10; i++) {
-  queue.add({ name: `Task${i}`, interval: i * 1000 });
-}
