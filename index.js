@@ -1,65 +1,137 @@
-import { FinancialParser } from './financialParser.js';
+import { Parser } from './parser.js';
 
-const parser = new FinancialParser('AAPL', 1);
+// Фіктивні дані для тестування
+const mockHTML = `
+  <html>
+    <h2><a>AAPL Inc.</a></h2>
+    <h1>AAPL</h1>
+    <strong>150.25</strong>
+    <td>Market Cap</td><b>2.41T</b>
+    <td>Income</td><b>100B</b>
+  </html>
+`;
 
-let requestCount = 0;
-
-const fakeReq = {
-  headers: {
-    'x-forwarded-for': '192.168.1.1'
-  },
-  socket: {
-    remoteAddress: '192.168.1.2'
-  }
+const regexPatterns = {
+  stockFullName: /<h2[^>]*>\s*<a[^>]*>\s*(.*?)\s*<\/a>\s*<\/h2>/,
+  tickerSymbol: /<h1[^>]*>\s*(.*?)\s*<\/h1>/,
+  currentPrice: /<strong[^>]*>\s*(\d+\.\d+)\s*<\/strong>/,
+  marketCapitalization: /Market Cap.*?(?:<b>|<span.*?>)\s*(.*?)\s*(?:<\/b>|<\/span>)/,
+  income: /Income.*?(?:<b>|<span.*?>)\s*(.*?)\s*(?:<\/b>|<\/span>)/,
 };
 
-const ip = parser.getClientIp(fakeReq);
+// Ініціалізація екземпляра класу Parser
+const parser = new Parser('https://finviz.com/quote.ashx?t=AAPL');
 
-const intervalId = setInterval(async () => {
-  requestCount++;
-  console.log(`Request #${requestCount}`);
+// Mock метод fetchHTML
+parser.fetchHTML = async function() {
+  this.html = mockHTML;
+  return this;
+};
 
-  // Simulate request using a fake `req` object
-  const canRequest = parser.checkRequestLimit();
+// Тест getClientIp
+function testGetClientIp() {
+  const mockRequest = { headers: { 'x-forwarded-for': '203.0.113.5' }, socket: { remoteAddress: '192.168.0.1' } };
+  const ip = parser.getClientIp(mockRequest);
+  console.assert(ip === '203.0.113.5', `Expected: 203.0.113.5, Got: ${ip}`);
+  console.log('getClientIp Test Passed ✔️');
+}
 
-  if (canRequest) {
-    try {
-      await parser.fetchHTML();
+// Тест checkRequestLimit
+function testCheckRequestLimit() {
+  const mockRequest = { headers: {}, socket: { remoteAddress: '192.168.0.1' } };
+  let result = parser.checkRequestLimit(mockRequest);
+  console.assert(result === true, 'Expected: true, Got:', result);
 
-      // Extract and print data from the parsed HTML using the financialParser methods
-      console.log('Ticker Symbol:', parser.tickerSymbol);
-      console.log('Current Price:', parser.currentPrice);
-      console.log('Stock Full Name:', parser.stockFullName);
-      console.log('Market Cap:', parser.marketCapitalization);
-      console.log('P/E Ratio:', parser.peRatio);
-      console.log('Income:', parser.income);
-      console.log('Sales:', parser.sales);
-      console.log('Book/Share:', parser.bookSh);
-      console.log('Cash/Share:', parser.cashSh);
-      console.log('Dividend Estimate:', parser.dividendEstimation);
-      console.log('Dividend TTM:', parser.dividendTtm);
-      console.log('Forward P/E Ratio:', parser.forwardPeRatio);
-      console.log('PEG Ratio:', parser.pegRatio);
-      console.log('PS Ratio:', parser.psRatio);
-      console.log('PB Ratio:', parser.pbRatio);
-      console.log('PC Ratio:', parser.pcRatio);
-      console.log('P/FCF Ratio:', parser.pFcfRatio);
-      console.log('Quick Ratio:', parser.quickRatio);
-      console.log('Current Ratio:', parser.currentRatio);
-      console.log('Debt/Equity:', parser.debtEq);
-      console.log('Long Term Debt/Equity:', parser.ltDebtEq);
-      console.log('ROA:', parser.roa);
-      console.log('ROE:', parser.roe);
-      console.log('ROI:', parser.roi);
-      console.log('Volume:', parser.volume);
-      console.log('Beta:', parser.beta);
-      console.log('Change:', parser.change);
+  // Виклик кілька разів для перевищення ліміту
+  parser.checkRequestLimit(mockRequest);
+  result = parser.checkRequestLimit(mockRequest);
+  console.assert(result === false, 'Expected: false, Got:', result);
 
-    } catch (err) {
-      console.error('Request error:', err.message);
-    }
-  } else {
-    console.log('Request limit exceeded, stopping...');
-    clearInterval(intervalId);
-  }
-}, 1000);
+  console.log('checkRequestLimit Test Passed ✔️');
+}
+
+// Тест fetchHTML
+async function testFetchHTML() {
+  await parser.fetchHTML();
+  console.assert(parser.html === mockHTML, 'Expected HTML to be fetched correctly.');
+  console.log('fetchHTML Test Passed ✔️');
+}
+
+// Тест extractValue
+function testExtractValue() {
+  parser.html = mockHTML;
+  const price = parser.extractValue(regexPatterns.currentPrice);
+  console.assert(price === '150.25', `Expected: 150.25, Got: ${price}`);
+  console.log('extractValue Test Passed ✔️');
+}
+
+// Тест parseData
+function testParseData() {
+  parser.html = mockHTML;
+  const result = parser.parseData(regexPatterns);
+
+  console.assert(result.data.stockFullName === 'AAPL Inc.', `Expected: AAPL Inc., Got: ${result.data.stockFullName}`);
+  console.assert(result.data.tickerSymbol === 'AAPL', `Expected: AAPL, Got: ${result.data.tickerSymbol}`);
+  console.assert(result.data.currentPrice === '150.25', `Expected: 150.25, Got: ${result.data.currentPrice}`);
+  console.assert(result.data.marketCapitalization === '2.41T', `Expected: 2.41T, Got: ${result.data.marketCapitalization}`);
+  console.assert(result.data.income === '100B', `Expected: 100B, Got: ${result.data.income}`);
+
+  console.log('parseData Test Passed ✔️');
+}
+
+// Тест printData
+function testPrintData() {
+  parser.data = {
+    stockFullName: 'AAPL Inc.',
+    tickerSymbol: 'AAPL',
+    currentPrice: '150.25',
+    marketCapitalization: '2.41T',
+    income: '100B',
+  };
+
+  const originalLog = console.log;
+  console.log = function(data) {
+    originalLog(data);  // Можна залишити для виведення
+  };
+
+  parser.printData();
+  console.log('printData Test Passed ✔️');
+  console.log = originalLog; // Повертаємо стандартний console.log
+}
+
+// Тест queueFetch
+function testQueueFetch() {
+  const urls = [
+    'https://finviz.com/quote.ashx?t=AAPL',
+    'https://finviz.com/quote.ashx?t=GOOGL',
+    'https://finviz.com/quote.ashx?t=MSFT',
+  ];
+
+  // Імітація обробки черги (mock fetchHTML)
+  parser.fetchHTML = async function() {
+    const urlObj = new URL(this.url);
+    this.html = `<html><h1>${urlObj.searchParams.get('t')}</h1></html>`;
+    return this;
+  };
+
+  parser.queueFetch(urls);
+
+  parser.queue.process(async (task, next) => {
+    await parser.fetchHTML(task);
+    const ticker = parser.extractValue(/<h1[^>]*>\s*(.*?)\s*<\/h1>/);
+    console.assert(['AAPL', 'GOOGL', 'MSFT'].includes(ticker), `Expected one of the tickers, Got: ${ticker}`);
+    console.log(`Fetched and processed: ${ticker}`);
+    next();
+  });
+
+  console.log('queueFetch Test Passed ✔️');
+}
+
+// Запуск тестів
+testGetClientIp();
+testCheckRequestLimit();
+testFetchHTML();
+testExtractValue();
+testParseData();
+testPrintData();
+testQueueFetch();

@@ -1,14 +1,24 @@
 import https from 'node:https';
 import { URL } from 'node:url';
 
+import { Queue } from './queue.js';
+
 export class Parser {
-  constructor(title, maxRequestsPerHour = 4) {
-    this.url = `https://finviz.com/quote.ashx?t=${title}&p=d`;
+  constructor(url, maxRequestsPerHour = 4, concurrency = 3) {
+    this.url = url;
     this.maxRequestsPerHour = maxRequestsPerHour;
     this.requestCounts = {};
     this.html = null;
     this.data = null;
     this.blackList = new Set();
+    this.queue = Queue.channels(concurrency)
+      .process(this.job)
+      .wait(200)
+      .drain(() => console.log('Queue drain'));
+  }
+
+  static parser(url, maxRequestsPerHour = 4, concurrency = 3) {
+    return new Parser(url, maxRequestsPerHour, concurrency);
   }
 
   getClientIp(req = { headers: {}, socket: { remoteAddress: '8.8.8.8' } }) {
@@ -69,54 +79,76 @@ export class Parser {
     return this;
   }
 
-  fetchHTML() {
+  async fetchHTML() {
     return new Promise((resolve, reject) => {
-      const urlObj = new URL(this.url);
-      const options = {
-        hostname: urlObj.hostname,
-        path: urlObj.pathname + urlObj.search,
-        method: 'GET',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-      };
+      try {
+        const urlObj = new URL(this.url); // Тут перевіряється валідність URL
+        const options = {
+          hostname: urlObj.hostname,
+          path: urlObj.pathname + urlObj.search,
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          }
+        };
 
-      https.get(options, (res) => {
-        const { statusCode, headers } = res;
+        https.get(options, (res) => {
+          const { statusCode, headers } = res;
 
-        if (statusCode >= 300 && statusCode < 400 && headers.location) {
-          console.log('Redirecting to:', headers.location);
-          resolve(null);
-          return;
-        }
+          if (statusCode >= 300 && statusCode < 400 && headers.location) {
+            console.log('Redirecting to:', headers.location);
+            resolve(null);
+            return;
+          }
 
-        if (statusCode !== 200) {
-          reject(new Error(`Request Failed. Status Code: ${statusCode}`));
-          return;
-        }
+          if (statusCode !== 200) {
+            reject(new Error(`Request Failed. Status Code: ${statusCode}`));
+            return;
+          }
 
-        let data = '';
-        res.on('data', (chunk) => {
-          data += chunk;
+          let data = '';
+          res.on('data', (chunk) => {
+            data += chunk;
+          });
+
+          res.on('end', () => {
+            this.html = data;
+            resolve(this);
+          });
+        }).on('error', (err) => {
+          reject(err);
         });
-
-        res.on('end', () => {
-          this.html = data;
-          resolve(this);
-        });
-      }).on('error', (err) => {
-        reject(err);
-      });
+      } catch (err) {
+        reject(new Error('Invalid URL: ' + err.message));
+      }
     });
   }
 
-  /**
-    * const data = new Set([
-    * [regexp1, value1],
-    * [regexp2, value2],
-    * [regexp3, value3]
-    * ]);
-   */
+  //   const urls = [
+  //     'https://example.com',
+  //     'https://example.org',
+  //     // mor pages here
+  //   ];
+
+  async job(task, next) {
+    try {
+      await this.fetchHTML(task.url);
+      next(null, task);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  queueFetch(urls) {
+    for (const url of urls) {
+      this.queue.add({ url });
+    }
+  }
+
+  extractValue(regex) {
+    const match = this.html.match(regex);
+    return match ? match[1].trim() : 'N/A';
+  }
 
   parseData(object) {
     if (!this.html) {
@@ -125,7 +157,7 @@ export class Parser {
 
     const result = {};
 
-    for (const [regexp, value] of Object.entries(object)) {
+    for (const [key, regexp] of Object.entries(object)) {
       const match = this.html.match(new RegExp(regexp));
       result[key] = match ? match[1].trim() : 'N/A';
     }
