@@ -1,6 +1,6 @@
 {
   "name": "livesey-data-parser",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Parser for scrapping needed financial data",
   "main": "index.js",
   "type": "module",
