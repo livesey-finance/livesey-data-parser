@@ -4,7 +4,7 @@ import { URL } from 'node:url';
 import { Queue } from './queue.js';
 
 export class Parser {
-  constructor(url, maxRequestsPerHour = 4, concurrency = 1, wait = 5000, timeout = 10000) {
+  constructor(url, maxRequestsPerHour = 4, concurrency = 1, wait = 5000, timeout = 10000, httpClient = null) {
     this.url = url;
     this.wait = wait;
     this.timeout = timeout;
@@ -13,6 +13,7 @@ export class Parser {
     this.html = null;
     this.data = null;
     this.blackList = new Set();
+    this.httpClient = httpClient || this.defaultHttpClient;
     this.queue = Queue.channels(concurrency)
       .wait(this.wait)
       .timeout(this.timeout)
@@ -82,51 +83,37 @@ export class Parser {
     return this;
   }
 
-  async fetchHTML() {
+  defaultHttpClient(options) {
     return new Promise((resolve, reject) => {
-      try {
-        const urlObj = new URL(this.url); // Тут перевіряється валідність URL
-        const options = {
-          hostname: urlObj.hostname,
-          path: urlObj.pathname + urlObj.search,
-          method: 'GET',
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-          }
-        };
-
-        https.get(options, (res) => {
-          const { statusCode, headers } = res;
-
-          console.log(`Status Code for ${this.url}: ${res.statusCode}`);
-
-          if (statusCode >= 300 && statusCode < 400 && headers.location) {
-            console.log('Redirecting to:', headers.location);
-            resolve(null);
-            return;
-          }
-
-          if (statusCode !== 200) {
-            reject(new Error(`Request Failed. Status Code: ${statusCode}`));
-            return;
-          }
-
-          let data = '';
-          res.on('data', (chunk) => {
-            data += chunk;
-          });
-
-          res.on('end', () => {
-            this.html = data;
-            resolve(this);
-          });
-        }).on('error', (err) => {
-          reject(err);
+      https.get(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => {
+          data += chunk;
         });
-      } catch (err) {
-        reject(new Error('Invalid URL: ' + err.message));
-      }
+        res.on('end', () => resolve(data));
+      }).on('error', (err) => reject(err));
     });
+  }
+
+  async fetchHTML() {
+    try {
+      const urlObj = new URL(this.url);
+      const options = {
+        hostname: urlObj.hostname,
+        path: urlObj.pathname + urlObj.search,
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+      };
+
+      // Використовуємо кастомний або дефолтний клієнт для запиту
+      const data = await this.httpClient(options);
+      this.html = data;
+      return this;
+    } catch (err) {
+      throw new Error('Error fetching HTML: ' + err.message);
+    }
   }
 
   //   const urls = [
