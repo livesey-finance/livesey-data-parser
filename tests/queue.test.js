@@ -125,7 +125,7 @@ function testParserQueueFetch() {
   });
 
   // Adding URLs to the queue
-  urls.forEach(url => parser.queue.add({ url }));
+  urls.forEach((url) => parser.queue.add({ url }));
 }
 
 

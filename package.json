@@ -1,20 +1,30 @@
 {
   "name": "livesey-data-parser",
   "version": "1.0.1",
-  "description": "Parser for scrapping needed financial data",
+  "description": "A financial data parser designed for scraping and extracting key metrics and information from various financial websites. Optimized for handling large datasets and multiple requests with proxy support, rotating proxies, and task queue management.",
   "main": "index.js",
   "type": "module",
   "scripts": {
     "start": "npx eslint . --fix && node index.js",
     "test": "node --test tests/*.test.js "
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "financial data",
+    "web scraping",
+    "data extraction",
+    "parser",
+    "stock market",
+    "proxies",
+    "queue management",
+    "automated scraping",
+    "financial websites",
+    "rotating proxies",
+    "ES6",
+    "Node.js"
+  ],
+  "author": "hhuziuk",
   "license": "ISC",
   "devDependencies": {
     "eslint": "^9.9.1"
-  },
-  "dependencies": {
-    "axios": "^1.7.7"
   }
 }

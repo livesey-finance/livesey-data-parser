@@ -58,7 +58,7 @@ async function mockHttpClient(options) {
   try {
     const result1 = parser.checkRequestLimit(req1);
     const result2 = parser.checkRequestLimit(req2);
-    
+
     if (result1 && result2) {
       console.log('checkRequestLimit() Test Passed ✔️');
     } else {
