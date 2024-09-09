@@ -1,3 +1,6 @@
+import fs from 'node:fs/promises';
+
+
 export class ProxyRotation extends Proxy {
   constructor(proxies = [], options = {}) {
     super(proxies, options);
@@ -88,5 +91,25 @@ export class ProxyRotation extends Proxy {
     }
 
     this.proxies = workingProxies;
+  }
+
+  async loadProxyFromFile(filePath) {
+    try {
+      const data = await fs.readFile(filePath, 'utf-8').catch((error) => { throw new Error(`Can not get proxies from ${filePath}`, error); });
+      const proxies = data.split('\n').filter((proxy) => proxy.trim() !== '');
+      this.proxies.push(...proxies);
+    } catch (error) {
+      throw new Error(`Error loading proxies from file: ${error.message}`);
+    }
+  }
+
+  async loadProxyFromApi(url) {
+    try {
+      const data = await fetch(url).catch((error) => { throw new Error('Can not get proxies from API', error); });
+      const proxies = await data.json();
+      this.proxies.push(...proxies);
+    } catch (error) {
+      throw new Error(`Error loading proxies from API: ${error.message}`);
+    }
   }
 }
