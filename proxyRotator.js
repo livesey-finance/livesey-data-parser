@@ -1,6 +1,5 @@
 import fs from 'node:fs/promises';
 
-
 export class ProxyRotation extends Proxy {
   constructor(proxies = [], options = {}) {
     super(proxies, options);
@@ -9,26 +8,48 @@ export class ProxyRotation extends Proxy {
     this.options = options;
     this.usedProxies = [];
     this.position = 0;
+    this.rotationTimeout = options.timeout || 0;
+
+    if (this.options.proxyFile) this.loadProxyFromFile(this.options.proxyFile);
+    if (this.options.method) this.setMethod(this.options.method);
   }
 
-  randomRotate() {
+  async setMethod(method) {
+    const methods = {
+      'random': this.randomRotate.bind(this),
+      'roundRobin': this.rotate.bind(this),
+      'rotateWithExclusion': this.rotateWithExclusion.bind(this)
+    };
+
+    if (methods[method]) {
+      return methods[method];
+    } else {
+      throw new Error(`Unknown method: ${method}`);
+    }
+  }
+
+  async randomRotate() {
     if (this.proxies.length === 0) {
       throw new Error('No proxies available for rotation');
     }
+
+    await this.applyTimeout();
     const randomElement = Math.floor(Math.random() * this.proxies.length);
     return this.proxies[randomElement];
   }
 
-  rotate() {
+  async rotate() {
     if (this.proxies.length === 0) {
       throw new Error('No proxies available for rotation');
     }
+
+    await this.applyTimeout();
     const proxyElement = this.proxies[this.position];
     this.position = (this.position + 1) % this.proxies.length;
     return proxyElement;
   }
 
-  rotateWithExclusion() {
+  async rotateWithExclusion() {
     if (this.proxies.length === 0) {
       throw new Error('No proxies available for rotation');
     }
@@ -36,6 +57,8 @@ export class ProxyRotation extends Proxy {
     if (this.usedProxies.length === this.proxies.length) {
       this.usedProxies = [];
     }
+
+    await this.applyTimeout();
 
     const availableProxies = this.proxies.filter((proxy) => !this.usedProxies.includes(proxy));
     const randomIndex = Math.floor(Math.random() * availableProxies.length);
@@ -70,7 +93,7 @@ export class ProxyRotation extends Proxy {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeout);
-      const response = await fetch(url, { proxy, signal: controller.signal });
+      const response = await fetch(url, { signal: controller.signal });
       clearTimeout(timeoutId);
       if (response.ok) {
         return true;
@@ -95,7 +118,7 @@ export class ProxyRotation extends Proxy {
 
   async loadProxyFromFile(filePath) {
     try {
-      const data = await fs.readFile(filePath, 'utf-8').catch((error) => { throw new Error(`Can not get proxies from ${filePath}`, error); });
+      const data = await fs.readFile(filePath, 'utf-8');
       const proxies = data.split('\n').filter((proxy) => proxy.trim() !== '');
       this.proxies.push(...proxies);
     } catch (error) {
@@ -105,11 +128,17 @@ export class ProxyRotation extends Proxy {
 
   async loadProxyFromApi(url) {
     try {
-      const data = await fetch(url).catch((error) => { throw new Error('Can not get proxies from API', error); });
+      const data = await fetch(url);
       const proxies = await data.json();
       this.proxies.push(...proxies);
     } catch (error) {
       throw new Error(`Error loading proxies from API: ${error.message}`);
+    }
+  }
+
+  async applyTimeout() {
+    if (this.rotationTimeout > 0) {
+      await new Promise((resolve) => setTimeout(resolve, this.rotationTimeout));
     }
   }
 }
