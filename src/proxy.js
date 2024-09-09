@@ -1,9 +1,7 @@
 import fs from 'node:fs/promises';
 
-export class ProxyRotation extends Proxy {
+export class ProxyRotation {
   constructor(proxies = [], options = {}) {
-    super(proxies, options);
-
     this.proxies = proxies;
     this.options = options;
     this.usedProxies = [];
