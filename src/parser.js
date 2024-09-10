@@ -18,7 +18,7 @@ export class Parser {
       .wait(this.wait)
       .timeout(this.timeout)
       .process(this.job.bind(this))
-      .drain(() => console.log('Queue drain'));
+      .drain(() => {});
   }
 
   static parser(url, maxRequestsPerHour = 4, concurrency = 3) {
@@ -49,13 +49,10 @@ export class Parser {
     if (requestInfo.blockTime) {
       const unblockTime = requestInfo.blockTime + (blockDuration * penaltyFactor);
       if (currentTime < unblockTime) {
-        console.log(`IP blocked for: ${unblockTime - currentTime} seconds`);
         return false;
       } else {
         // Unblock IP after block time expires
-        console.log('IP unblocked.');
         this.blackList.delete(ip);
-        console.log(`${ip} removed from blacklist`);
         requestInfo.blockTime = 0;
         requestInfo.count = 1; // Reset count after unblocking
         requestInfo.lastRequestTime = currentTime;
@@ -66,8 +63,6 @@ export class Parser {
     // If request limit exceeded
     if (requestInfo.count >= this.maxRequestsPerHour) {
       requestInfo.blockTime = currentTime; // Set block time
-      console.log(`Request limit exceeded for IP: ${ip}. Blocking for ${blockDuration * penaltyFactor} seconds.`);
-      console.log(`${ip} added to blacklist`);
       this.blackList.add(ip);
       return false;
     }
@@ -124,19 +119,13 @@ export class Parser {
 
   async job(task, next) {
     try {
-      console.log(`Processing URL: ${task.url}`);
       await this.fetchHTML();
-      if (this.html) {
-        console.log(`Fetched HTML for ${task.url}`);
-      } else {
-        console.error(`Failed to fetch HTML for ${task.url}`);
-      }
       next(null, task);
     } catch (err) {
-      console.error(`Error processing URL: ${task.url}`, err);
       next(err);
     }
   }
+
 
   queueFetch(urls) {
     for (const url of urls) {
