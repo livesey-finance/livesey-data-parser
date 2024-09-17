@@ -1,7 +1,7 @@
 # livesey-data-parser
 
-![version](https://img.shields.io/badge/version-1.0.2-blue)
-![license](https://img.shields.io/badge/license-ISC-green)
+![version](https://img.shields.io/badge/version-1.0.3-blue)
+![license](https://img.shields.io/badge/license-MIT-green)
 ![Node](https://img.shields.io/badge/node-%3E%3D16.0.0-orange)
 
 ## Overview
