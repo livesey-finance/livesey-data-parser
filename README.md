@@ -65,7 +65,7 @@ const proxyManager = new ProxyRotation(proxies, { method: 'roundRobin', timeout:
 
 ### Queue Management Example
 
-For large-scale scraping operations, the task queue can manage concurrent requests:
+For large-scale scraping operations, the task queue can manage concurrent requests. Here's an example of how to queue and process multiple URLs:
 
 ```js
 import { Parser } from 'livesey-data-parser';
@@ -78,7 +78,33 @@ const urls = [
   'https://example.com/page3'
 ];
 
-parser.queueFetch(urls);  // Queue and process URLs
+let processedUrls = 0;
+
+const taskProcessor = async (task) => {
+  try {
+    parser.setUrl(task.url);   // Update the parser URL
+    await parser.fetchHTML();  // Fetch the HTML
+    const data = parser.extractValue(/<h1>(.*?)<\/h1>/);  // Extract data from the page
+    console.log(`Processed: ${data}`);
+    processedUrls++;
+  } catch (error) {
+    console.error('Error processing task:', error.message);
+  }
+};
+
+// Add URLs to the queue
+urls.forEach(url => {
+  parser.queue.add(() => taskProcessor({ url }));
+});
+
+// Wait for all tasks to finish
+parser.queue.drain(() => {
+  if (processedUrls === urls.length) {
+    console.log('All URLs processed successfully');
+  } else {
+    console.error('Some URLs failed to process');
+  }
+});
 ```
 
 ## API Reference
@@ -106,10 +132,13 @@ parser.queueFetch(urls);  // Queue and process URLs
 ### `Queue`
 
 - **Constructor**: `new Queue(concurrency)`
+  - **concurrency**: Maximum number of tasks to run in parallel.
+  
 - **Methods**:
-  - `process(listener)`: Define the task processing logic.
-  - `add(task)`: Add a task to the queue.
-  - `drain(listener)`: Set the function to be called when all tasks are completed.
+  - `add(task)`: Add a task to the queue. The task should be a function that returns a promise.
+  - `drain(listener)`: Register a listener to be called when all tasks are processed.
+
+In this updated queue system, the tasks are added using the `add()` method, and the processing is handled inside the provided task function. The `drain()` method ensures the code waits for all tasks to finish before proceeding.
 
 ## Running Tests
 

@@ -1,7 +1,6 @@
 import https from 'node:https';
 import { URL } from 'node:url';
-
-import { Queue } from './queue.js';
+import { AsyncQueue } from 'livesey-utilities';
 
 export class Parser {
   constructor(url, maxRequestsPerHour = 4, concurrency = 1, wait = 5000, timeout = 10000, httpClient = null) {
@@ -14,10 +13,10 @@ export class Parser {
     this.data = null;
     this.blackList = new Set();
     this.httpClient = httpClient || this.defaultHttpClient;
-    this.queue = Queue.channels(concurrency)
+    this.queue = new AsyncQueue(concurrency)
       .wait(this.wait)
       .timeout(this.timeout)
-      .process(this.job.bind(this))
+      .success(() => {})
       .drain(() => {});
   }
 
@@ -35,7 +34,6 @@ export class Parser {
     const ip = this.getClientIp(req);
     const currentTime = Math.floor(Date.now() / 1000);
 
-    // If IP not found, initialize it
     if (!this.requestCounts[ip]) {
       this.requestCounts[ip] = { count: 1, lastRequestTime: currentTime, blockTime: 0 };
       return true;
@@ -45,29 +43,25 @@ export class Parser {
     const blockDuration = 3600; // 1 hour
     const penaltyFactor = 2; // Exponential increase of block time
 
-    // If IP is already blocked
     if (requestInfo.blockTime) {
       const unblockTime = requestInfo.blockTime + (blockDuration * penaltyFactor);
       if (currentTime < unblockTime) {
         return false;
       } else {
-        // Unblock IP after block time expires
         this.blackList.delete(ip);
         requestInfo.blockTime = 0;
-        requestInfo.count = 1; // Reset count after unblocking
+        requestInfo.count = 1;
         requestInfo.lastRequestTime = currentTime;
         return true;
       }
     }
 
-    // If request limit exceeded
     if (requestInfo.count >= this.maxRequestsPerHour) {
-      requestInfo.blockTime = currentTime; // Set block time
+      requestInfo.blockTime = currentTime;
       this.blackList.add(ip);
       return false;
     }
 
-    // Update request count
     requestInfo.count += 1;
     requestInfo.lastRequestTime = currentTime;
     return true;
@@ -102,7 +96,6 @@ export class Parser {
         }
       };
 
-      // Використовуємо кастомний або дефолтний клієнт для запиту
       const data = await this.httpClient(options);
       this.html = data;
       return this;
@@ -111,28 +104,21 @@ export class Parser {
     }
   }
 
-  //   const urls = [
-  //     'https://example.com',
-  //     'https://example.org',
-  //     // mor pages here
-  //   ];
-
-  async job(task, next) {
+  async job(task) {
     try {
+      this.url = task.url;
       await this.fetchHTML();
-      next(null, task);
+      return task; // Завдання завершене успішно
     } catch (err) {
-      next(err);
+      throw new Error('Error processing task: ' + err.message);
     }
   }
-
 
   queueFetch(urls) {
-    for (const url of urls) {
-      this.queue.add({ url });  // Передаємо { url } як об'єкт у чергу
-    }
+    urls.forEach((url) => {
+      this.queue.add(() => this.job({ url }));
+    });
   }
-
 
   extractValue(regex) {
     const match = this.html.match(regex);
@@ -145,7 +131,6 @@ export class Parser {
     }
 
     const result = {};
-
     for (const [key, regexp] of Object.entries(object)) {
       const match = this.html.match(new RegExp(regexp));
       result[key] = match ? match[1].trim() : 'N/A';

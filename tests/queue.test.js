@@ -1,11 +1,9 @@
-import { Queue } from '../src/queue.js';  // Імпорт вашого класу Queue
-import { Parser } from '../src/parser.js';  // Імпорт класу Parser
+import { AsyncQueue } from 'livesey-utilities';
+import { Parser } from '../src/parser.js';
 
-// Мок (фіктивний) клієнт для тестування, який повертає HTML сторінку з відповідними тегами
 async function mockHttpClient(options) {
   const { path } = options;
 
-  // Повертаємо різний HTML залежно від URL
   if (path.includes('AAPL')) {
     return `
       <html>
@@ -40,7 +38,6 @@ async function mockHttpClient(options) {
     `;
   }
 
-  // За замовчуванням повертаємо HTML з іншими значеннями
   return `
     <html>
       <body>
@@ -50,39 +47,35 @@ async function mockHttpClient(options) {
   `;
 }
 
-// Тест класу Queue
 function testQueue() {
   console.log('Testing Queue class...');
 
-  const queue = Queue.channels(2)  // Обмеження 2 одночасних завдань
-    .wait(5000)  // Тайм-аут очікування 5 секунд
-    .timeout(10000);  // Тайм-аут обробки завдання 10 секунд
+  const queue = AsyncQueue.channels(2)
+    .wait(5000)
+    .timeout(10000);
 
   let processedTasks = 0;
 
-  // Обробка завдань
-  queue.process((task, next) => {
+  const taskProcessor = (task) => new Promise((resolve) => {
     console.log(`Processing task: ${task.name}`);
     setTimeout(() => {
       console.log(`Finished task: ${task.name}`);
       processedTasks++;
-      next();  // Викликаємо наступне завдання
-    }, 1000);  // Кожне завдання обробляється 1 секунду
+      resolve(task);
+    }, 1000);
   });
 
+  queue.add(() => taskProcessor({ name: 'Task 1' }));
+  queue.add(() => taskProcessor({ name: 'Task 2' }));
+  queue.add(() => taskProcessor({ name: 'Task 3' }));
+
   queue.drain(() => {
-    console.log('All tasks processed');
     if (processedTasks === 3) {
       console.log('Queue test passed ✔️');
     } else {
       console.error('Queue test failed ❌');
     }
   });
-
-  // Додавання завдань у чергу
-  queue.add({ name: 'Task 1' });
-  queue.add({ name: 'Task 2' });
-  queue.add({ name: 'Task 3' });
 }
 
 function testParserQueueFetch() {
@@ -99,20 +92,22 @@ function testParserQueueFetch() {
 
   let processedUrls = 0;
 
-  parser.queue.process(async (task, next) => {
+  const taskProcessor = async (task) => {
     try {
-      parser.url = task.url;  // Set the URL correctly
-      const html = await parser.fetchHTML();  // Fetch HTML from mock client
-      const ticker = parser.extractValue(/<h2[^>]*>\s*<a[^>]*>\s*(.*?)\s*<\/a>\s*<\/h2>/);  // Parse the ticker
+      parser.url = task.url;
+      await parser.fetchHTML();
+      const ticker = parser.extractValue(/<h2[^>]*>\s*<a[^>]*>\s*(.*?)\s*<\/a>\s*<\/h2>/);
 
-      // Expect each ticker to match one of the known values
       console.assert(['AAPL', 'NKE', 'MSFT', 'GOOGL'].includes(ticker), `Expected one of the tickers, Got: ${ticker}`);
       console.log(`Fetched and processed: ${ticker}`);
       processedUrls++;
     } catch (error) {
       console.error('Queue fetch error:', error.message);
     }
-    next();
+  };
+  // Add tasks to the queue and process them
+  urls.forEach((url) => {
+    parser.queue.add(() => taskProcessor({ url }));
   });
 
   parser.queue.drain(() => {
@@ -123,13 +118,7 @@ function testParserQueueFetch() {
       console.error('Parser queueFetch test failed ❌');
     }
   });
-
-  // Adding URLs to the queue
-  urls.forEach((url) => parser.queue.add({ url }));
 }
 
-
-
-// Запуск тестів
 testQueue();
 testParserQueueFetch();

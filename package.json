@@ -1,6 +1,6 @@
 {
   "name": "livesey-data-parser",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A financial data parser designed for scraping and extracting key metrics and information from various financial websites. Optimized for handling large datasets and multiple requests with proxy support, rotating proxies, and task queue management.",
   "main": "index.js",
   "type": "module",
@@ -26,5 +26,8 @@
   "license": "ISC",
   "devDependencies": {
     "eslint": "^9.9.1"
+  },
+  "dependencies": {
+    "livesey-utilities": "^1.0.0"
   }
 }
